@@ -1,6 +1,9 @@
 import java.io.*;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.*;
 import java.util.Random;
 
 import genome.GeneticTSP;
@@ -27,9 +30,14 @@ class Runner {
     static Random rand = new Random();
 
     public static void main(String[] args) {
-        runFullExperiment("bruteForce-1");
-        runFullExperiment("bruteForce-2");
-        runFullExperiment("bruteForce-3");
+        // runFullExperiment("bruteForce-1.txt");
+        // runFullExperiment("bruteForce-2.txt");
+        // runFullExperiment("bruteForce-3.txt");
+
+        int[][] mat = generateCircular(6, 10);
+
+        PrintMatrixNicely(mat);
+
     }
 
     private static void runFullExperiment(String resultsFileName) {
@@ -151,6 +159,77 @@ class Runner {
         }
 
         return matrix;
+    }
+
+    public static int[][] generateRandEuclid(int vert, int n) {
+
+        VertexPoint[] vertices = new VertexPoint[vert];
+
+        for (int i = 0; i < vert; i++) {
+            vertices[i] = new VertexPoint(rand.nextInt(n - 1), rand.nextInt(n - 1), i);
+        }
+
+        int[][] matrix = new int[vert][vert];
+        // fill the matrix up with maxes
+        for (int[] row : matrix)
+            java.util.Arrays.fill(row, 99);
+        // populate x,y coords with the proper distances
+        for (int i = 0; i < vert; i++) {
+            for (int j = 0; j <= i; j++) {
+                if (i == j) {
+                    matrix[i][j] = 0;
+                } else {
+                    matrix[i][j] = vertices[i].getDistance(vertices[j]);
+                    matrix[j][i] = vertices[j].getDistance(vertices[i]);
+                }
+            }
+        }
+
+        return matrix;
+    }
+
+    public static int[][] generateCircular(int vert, int radius) {
+        VertexPoint[] vertices = new VertexPoint[vert];
+        List<VertexPoint> shuf = new ArrayList<VertexPoint>();
+
+        int x = 0, y = radius;
+        double stepAngle = (2 * Math.PI) / vert;
+        for (int i = 0; i < vert; i++) {
+            shuf.add(new VertexPoint(x, y, i));
+            x = (int) (radius * Math.sin((i + 1) * stepAngle));
+            y = (int) (radius * Math.cos((i + 1) * stepAngle));
+        }
+
+        // mix up the order to the elements
+        Collections.shuffle(shuf);
+        vertices = shuf.toArray(vertices);
+
+        int[][] matrix = new int[vert][vert];
+        // fill the matrix up with maxes
+        for (int[] row : matrix)
+            java.util.Arrays.fill(row, 99);
+        // populate x,y coords with the proper distances
+        for (int i = 0; i < vert; i++) {
+            for (int j = 0; j <= i; j++) {
+                if (i == j) {
+                    matrix[i][j] = 0;
+                } else {
+                    matrix[i][j] = vertices[i].getDistance(vertices[j]);
+                    matrix[j][i] = vertices[j].getDistance(vertices[i]);
+                }
+            }
+        }
+
+        return matrix;
+    }
+
+    public static void PrintMatrixNicely(int[][] matrix) {
+        for (int i = 0; i < matrix.length; i++) {
+            for (int j = 0; j < matrix[i].length; j++) {
+                System.out.printf("%4d", matrix[i][j]);
+            }
+            System.out.println();
+        }
     }
 
     private static void runAlgorithms() {
