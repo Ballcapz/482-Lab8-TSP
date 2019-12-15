@@ -1,7 +1,6 @@
 import java.io.*;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.*;
 import java.util.Random;
@@ -16,11 +15,10 @@ class Runner {
     /* define constants */
     static long MAXVALUE = 2000000000;
     static long MINVALUE = -2000000000;
-    private static int numberOfTrials = 50;
-    private static int MAXINPUTSIZE = 12;
-    // (int) Math.pow(2, 14);
-    private static int MININPUTSIZE = 2;
-    private static int SIZEINCREMENT = 1;
+    private static int numberOfTrials = 1;
+    private static int MAXINPUTSIZE = 10000;
+    private static int MININPUTSIZE = 10;
+    private static int SIZEINCREMENT = 2;
 
     private static String ResultsFolderPath = "C:\\Users\\Zach\\Documents\\School\\Fall 2019\\482 Algorithms\\lab8_logs\\";
 
@@ -30,13 +28,13 @@ class Runner {
     static Random rand = new Random();
 
     public static void main(String[] args) {
-        // runFullExperiment("bruteForce-1.txt");
-        // runFullExperiment("bruteForce-2.txt");
-        // runFullExperiment("bruteForce-3.txt");
+        // runFullExperiment("greedy-vs-genome-1.txt");
+        // runFullExperiment("greedy-vs-genome-2.txt");
+        // runFullExperiment("greedy-vs-genome-3.txt");
 
-        int[][] mat = generateCircular(6, 10);
+        // verifyExact();
 
-        PrintMatrixNicely(mat);
+        verifyFaster();
 
     }
 
@@ -54,10 +52,13 @@ class Runner {
         }
 
         // set up the class to be used
-        TSP tsp = new TSP();
+        GreedyTsp greedyTsp = new GreedyTsp();
+        GeneticTSP geneticTSP;
+
         ThreadCpuStopWatch TrialStopwatch = new ThreadCpuStopWatch(); // for timing an individual trial
 
-        resultsWriter.println("#InputSize    AverageTime        DoublingRatio"); // # marks a comment in gnuplot data
+        resultsWriter.println("#InputSize    GeneticCost        GreedyCost"); // # marks a comment
+                                                                              // in gnuplot data
 
         resultsWriter.flush();
 
@@ -68,7 +69,7 @@ class Runner {
         // double[] timeRatios;
         double previousTime = 0;
 
-        for (int inputSize = MININPUTSIZE; inputSize <= MAXINPUTSIZE; inputSize += SIZEINCREMENT) {
+        for (int inputSize = MININPUTSIZE; inputSize <= MAXINPUTSIZE; inputSize *= SIZEINCREMENT) {
 
             // progress message...
 
@@ -96,14 +97,24 @@ class Runner {
 
             // BatchStopwatch.start(); // comment this line if timing trials individually
 
-            int[] results;
+            // int[] results;
+            Salesman resultsGen;
+            int[] greedResult;
+
+            // double batchSqr = 0;
+
+            int greedCost = 0;
+            int geneticCost = 0;
 
             // run the trials
             System.out.println("Timing Each sort individually wo gc every time forced...");
             System.out.print("    Starting trials for input size " + inputSize + " ... ");
             for (long trial = 0; trial < numberOfTrials; trial++) {
                 // Set up the matrix to be used
-                int[][] matrix = generateRandomMatrix(inputSize);
+                int[][] matrix = generateRandEuclid(inputSize, 100);
+
+                geneticTSP = new GeneticTSP(inputSize, matrix, 0, 0);
+
                 TrialStopwatch.start(); // *** uncomment this line if timing trials individually
 
                 /* run the function we're testing on the trial input */
@@ -111,11 +122,17 @@ class Runner {
                 ///////////////////////////////////////////
                 /* DO BIDNESS */
                 /////////////////////////////////////////
-                results = tsp.bruteForce(matrix);
+                resultsGen = geneticTSP.optimize();
+                greedResult = greedyTsp.greedyTsp(matrix);
                 ///////////////////////////////////////////
                 /* END DO BIDNESS */
                 /////////////////////////////////////////
 
+                greedCost = greedyTsp.computeTourCost(greedResult, matrix);
+                geneticCost = resultsGen.getFitness();
+                // double sqr = greedyTsp.computeTourCost(greedResult, matrix) /
+                // tsp.computeTourCost(results, matrix);
+                // batchSqr += sqr;
                 batchElapsedTime = batchElapsedTime + TrialStopwatch.elapsedTime(); // *** uncomment this line if timing
                                                                                     // trials individually
 
@@ -133,7 +150,12 @@ class Runner {
             previousTime = averageTimePerTrialInBatch;
             /* print data for this size of input */
 
-            resultsWriter.printf("%12d  %18.2f %18.1f\n", inputSize, averageTimePerTrialInBatch, doublingRatio);
+            // double averageSqr = batchSqr / numberOfTrials;
+
+            // resultsWriter.printf("%12d %18.2f %18.1f\n", inputSize,
+            // averageTimePerTrialInBatch, doublingRatio);
+
+            resultsWriter.printf("%12d  %16d  %16d\n", inputSize, geneticCost, greedCost);
 
             resultsWriter.flush();
 
@@ -201,8 +223,18 @@ class Runner {
         }
 
         // mix up the order to the elements
-        Collections.shuffle(shuf);
+        // Collections.shuffle(shuf);
+        System.out.println("Vertex Sequence");
+        for (VertexPoint v : shuf) {
+            System.out.printf("%d: (%d, %d)\n", v.name, v.x, v.y);
+        }
         vertices = shuf.toArray(vertices);
+
+        // expected tour cost (vert * distance between 0 and 1)
+        int singleDistance = vertices[0].getDistance(vertices[1]);
+        int expectedCost = singleDistance * vert;
+
+        System.out.println("Expected Cost: " + expectedCost);
 
         int[][] matrix = new int[vert][vert];
         // fill the matrix up with maxes
@@ -230,6 +262,34 @@ class Runner {
             }
             System.out.println();
         }
+    }
+
+    private static void verifyExact() {
+        int[][] matrix = generateCircular(10, 100);
+        PrintMatrixNicely(matrix);
+
+        TSP tsp = new TSP();
+        int[] result = tsp.bruteForce(matrix);
+
+        System.out.println("Result tour: " + Arrays.toString(result));
+        System.out.println("Result Cost: " + tsp.computeTourCost(result, matrix));
+
+    }
+
+    private static void verifyFaster() {
+        int[][] matrix = generateCircular(10, 100);
+        PrintMatrixNicely(matrix);
+
+        // GreedyTsp tsp = new GreedyTsp();
+        // int[] result = tsp.greedyTsp(matrix);
+
+        GeneticTSP genetic = new GeneticTSP(10, matrix, 0, 0);
+        Salesman result = genetic.optimize();
+
+        System.out.println(result);
+
+        // System.out.println("Result tour: " + Arrays.toString(result));
+        // System.out.println("Result Cost: " + tsp.computeTourCost(result, matrix));
     }
 
     private static void runAlgorithms() {

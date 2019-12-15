@@ -21,11 +21,11 @@ public class GeneticTSP {
         startingCity = starting;
         targetFitness = targetFit;
 
-        generationSize = 5000;
-        reproductionSize = 200;
-        maxIterations = 1000;
+        generationSize = 1000;
+        reproductionSize = 100;
+        maxIterations = 100;
         mutationRate = 0.1f;
-        tournamentSize = 40;
+        tournamentSize = 5;
     }
 
     public List<Salesman> initialPopulation() {
